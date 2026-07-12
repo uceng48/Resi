@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nyetak Gambar jeung Resi - Versi Siku</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #0f172a; height: 100vh; overflow: hidden; }
+        #app { display: flex; flex-direction: column; height: 100%; }
+
+        .header {
+            background: #1e293b; border-bottom: 1px solid #334155;
+            padding: 12px 20px; display: flex; justify-content: space-between;
+            align-items: center; color: white; z-index: 50;
+        }
+        .header h1 { font-size: 1.5rem; font-weight: 900; font-style: italic;
+            text-decoration: underline; text-decoration-color: #3b82f6; }
+        .controls { display: flex; gap: 12px; align-items: center; }
+        .paper-select {
+            background: #334155; padding: 6px 12px; border-radius: 8px;
+            display: flex; gap: 8px; align-items: center; font-size: 13px;
+        }
+        .paper-select select, .paper-select input {
+            background: #1e293b; border: 1px solid #475569; color: white;
+            font-weight: bold; outline: none; padding: 2px 5px; border-radius: 4px;
+        }
+        .print-btn { background: #3b82f6; color: white; border: none;
+            padding: 8px 24px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        .print-btn:hover { background: #2563eb; }
+
+        .main { display: flex; flex: 1; overflow: hidden; }
+        .sidebar {
+            width: 320px; background: #1e293b; border-right: 1px solid #334155;
+            display: flex; flex-direction: column; color: white;
+        }
+        .tab-nav { display: flex; background: #0f172a; padding: 8px 8px 0 8px; gap: 4px; }
+        .tab-btn {
+            flex: 1; padding: 10px 4px; border: none; background: #1e293b; color: #94a3b8;
+            cursor: pointer; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 11px;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .tab-btn.active { background: #3b82f6; color: white; }
+        .badge { background: #ef4444; color: white; border-radius: 50%;
+            padding: 2px 8px; font-size: 10px; margin-left: 5px; display: inline-block; line-height: 1.4; }
+
+        .tab-content { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+        .tab-content.active { display: flex; }
+
+        .sidebar-scroll { flex: 1; overflow-y: auto; padding: 15px; }
+        .slider-group { margin-bottom: 16px; }
+        .slider-group label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; }
+        .numeric-input { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .numeric-input input {
+            width: 100%; background: #334155; border: 1px solid #475569;
+            color: white; padding: 6px; border-radius: 4px;
+        }
+        .info-box { background: #334155; padding: 10px; border-radius: 8px; font-size: 12px; margin-top: 10px; }
+
+        .asset-grid-title { display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; font-size: 11px; font-weight: bold; color: #3b82f6; border-top: 1px solid #334155; }
+        .asset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .asset-item {
+            background: #334155; border-radius: 6px; overflow: hidden; cursor: pointer;
+            border: 2px solid transparent; position: relative;
+        }
+        .asset-item:hover { border-color: #3b82f6; }
+        .asset-item img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #000; display: block; }
+        .asset-item .name { padding: 4px; font-size: 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rotate-btn {
+            position: absolute; top: 5px; right: 5px; background: #3b82f6; color: white;
+            border: none; width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+        .history-item { background: #334155; border-radius: 6px; overflow: hidden; cursor: pointer; font-size: 9px; text-align: center; }
+        .history-item img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+
+        /* Histori Cetak CSS */
+        .history-log-card {
+            background: #334155; border-left: 4px solid #3b82f6; padding: 10px;
+            border-radius: 6px; font-size: 11px; color: #f1f5f9; position: relative; margin-bottom: 8px;
+        }
+        .history-log-card .highlight { color: #3b82f6; font-weight: bold; }
+
+        .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .toolbar { background: #1e293b; padding: 10px 20px; display: flex; gap: 12px;
+            border-bottom: 1px solid #334155; align-items: center; }
+        .canvas-container {
+            flex: 1; overflow: auto; padding: 20px; display: none;
+            flex-direction: column; align-items: center; gap: 30px; background: #0f172a;
+        }
+        .canvas-container.active { display: flex; }
+
+        .paper-page {
+            background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: flex-start;
+            align-items: flex-start; position: relative; flex-shrink: 0;
+            padding: 0 !important; gap: 0 !important;
+        }
+
+        .slot {
+            border: 0.1mm dashed #aaa; position: relative; display: flex;
+            align-items: center; justify-content: center; overflow: hidden; background: #fafafa;
+            flex-shrink: 0; margin: 0 !important; padding: 0 !important;
+        }
+        .slot img { 
+            max-width: 100% !important; max-height: 100% !important; 
+            width: auto !important; height: auto !important; display: block; 
+        }
+
+        .slot.img-mode {
+            position: absolute !important;
+            left: var(--x-screen) !important;
+            top: var(--y-screen) !important;
+            border: none !important; overflow: hidden; background: transparent;
+            outline: none !important;
+        }
+        .slot.img-mode img {
+            width: 100% !important; height: 100% !important;
+            display: block; object-fit: fill;
+        }
+
+        .crop-mark {
+            position: absolute; width: var(--crop-len); height: var(--crop-len);
+            pointer-events: none; z-index: 25; display: none;
+        }
+        .slot.img-mode:not(.no-crop) .crop-mark { display: block; }
+        .crop-mark.tl { top: var(--crop-offset); left: var(--crop-offset); border-top: var(--crop-thick) solid #000; border-left: var(--crop-thick) solid #000; }
+        .crop-mark.tr { top: var(--crop-offset); right: var(--crop-offset); border-top: var(--crop-thick) solid #000; border-right: var(--crop-thick) solid #000; }
+        .crop-mark.bl { bottom: var(--crop-offset); left: var(--crop-offset); border-bottom: var(--crop-thick) solid #000; border-left: var(--crop-thick) solid #000; }
+        .crop-mark.br { bottom: var(--crop-offset); right: var(--crop-offset); border-bottom: var(--crop-thick) solid #000; border-right: var(--crop-thick) solid #000; }
+
+        .delete-btn {
+            position: absolute; top: 2px; right: 2px; background: rgba(220,38,38,0.8);
+            color: white; border: none; width: 22px; height: 22px; border-radius: 4px;
+            cursor: pointer; display: none; z-index: 30;
+        }
+        .slot:hover .delete-btn { display: block; }
+        .page-label { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.3);
+            color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; z-index: 50; }
+
+        @media print {
+            .no-print,
+            .header,
+            .sidebar,
+            .toolbar,
+            .tab-nav,
+            .tab-content:not(.active),
+            .page-label,
+            .delete-btn,
+            .rotate-btn,
+            .btn-blue,
+            .btn-red,
+            .print-btn,
+            .controls,
+            .asset-grid,
+            .asset-grid-title,
+            .upload-area,
+            .upload-preview-list,
+            .history-list,
+            .info-box,
+            .slider-group,
+            .numeric-input,
+            #resiBadge,
+            #pageCounter,
+            .paper-select,
+            #mainTitle {
+                display: none !important;
+            }
+
+            body, html {
+                background: white !important;
+                height: auto !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            #app, .main, .content {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+                position: static !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .canvas-container.active {
+                display: block !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                position: static !important;
+            }
+
+            .paper-page {
+                position: relative !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+                border: none !important;
+                overflow: visible !important;
+                background: white !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                align-content: flex-start !important;
+                justify-content: flex-start !important;
+                align-items: flex-start !important;
+                padding: 0 !important;
+                gap: 0 !important;
+            }
+
+            .slot.img-mode {
+                position: absolute !important;
+                left: var(--x-print, 0) !important;
+                top: var(--y-print, 0) !important;
+                width: var(--slot-width, auto) !important;
+                height: var(--slot-height, auto) !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                overflow: visible !important;
+                background: transparent !important;
+            }
+
+            .slot:not(.img-mode) {
+                border: 0.1mm dashed #999 !important;
+                position: relative !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .slot.img-mode img {
+                display: block !important;
+                width: 100% !important;
+                height: 100% !important;
+                max-width: none !important;
+                max-height: none !important;
+                object-fit: fill !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .crop-mark {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                display: block !important;
+            }
+            .slot.img-mode.no-crop .crop-mark {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <header class="header no-print">
+        <h1 id="mainTitle">STUDIO CETAK RESI</h1>
+        <div class="controls">
+            <div class="paper-select">
+                <span>KERTAS:</span>
+                <select id="paperType">
+                    <option value="A4">A4 (210x297mm)</option>
+                    <option value="A3">A3 (297x420mm)</option>
+                    <option value="A3+">A3+ (329x483mm)</option>
+                    <option value="custom">Karso</option>
+                </select>
+                <span id="customDim" style="display: none;">
+                    <input type="number" id="custW" value="210" style="width:55px"> x
+                    <input type="number" id="custH" value="297" style="width:55px"> mm
+                </span>
+            </div>
+            <button class="print-btn" onclick="window.print()">CETAK</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <aside class="sidebar no-print">
+            <nav class="tab-nav">
+                <button id="btn-tab-resi" class="tab-btn active" onclick="openTab('resi')">
+                    NYETAK RESI <span id="resiBadge" class="badge">0</span>
+                </button>
+                <button id="btn-tab-image" class="tab-btn" onclick="openTab('image')">NYETAK GAMBAR</button>
+                <button id="btn-tab-history" class="tab-btn" onclick="openTab('history')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    HISTORI
+                </button>
+            </nav>
+
+            <div id="tab-resi" class="tab-content active">
+                <div class="sidebar-scroll">
+                    <div class="slider-group">
+                        <label>Lebar Resi (mm)</label>
+                        <div class="numeric-input">
+                            <input type="range" id="resiWidthRange" min="20" max="210" value="100">
+                            <input type="number" id="resiWidthNum" value="100">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Tinggi Resi (mm)</label>
+                        <div class="numeric-input">
+                            <input type="range" id="resiHeightRange" min="20" max="297" value="150">
+                            <input type="number" id="resiHeightNum" value="150">
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <div>Kapasitas/Hal: <span id="resiCapacity">0</span></div>
+                        <div>Total Item: <span id="resiTotal">0</span></div>
+                    </div>
+                    <br>
+                    <button class="btn-blue" style="width:100%" onclick="document.getElementById('pdfInp').click()">+ UPLOAD PDF RESI</button>
+                    <input type="file" id="pdfInp" multiple accept="application/pdf" style="display:none">
+                    <div id="resiHistory" class="history-list"></div>
+                </div>
+            </div>
+
+            <div id="tab-image" class="tab-content">
+                <div class="sidebar-scroll">
+                    <div class="slider-group">
+                        <label>Upload Gambar Sendiri</label>
+                        <div class="upload-area" id="uploadArea" onclick="document.getElementById('imgUpload').click()">
+                            <div class="icon">📁</div>
+                            <p>Klik atau tarik gambar ke sini</p>
+                            <p style="font-size:10px; color:#64748b;">JPG, PNG, WEBP (max 10MB)</p>
+                        </div>
+                        <input type="file" id="imgUpload" multiple accept="image/*" style="display:none">
+                        <div id="uploadPreview" class="upload-preview-list"></div>
+                    </div>
+
+                    <div class="slider-group">
+                        <label>Ukuran (W x H mm)</label>
+                        <div class="numeric-input">
+                            <input type="number" id="imgW" value="50">
+                            <span>x</span>
+                            <input type="number" id="imgH" value="50">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Jarak / Gap (mm) — hanya tampilan, saat print dihilangkan</label>
+                        <div class="numeric-input">
+                            <input type="number" id="imgGap" value="0" min="0">
+                        </div>
+                    </div>
+
+                    <div class="slider-group">
+                        <label>Panjang Kres (mm)</label>
+                        <div class="numeric-input">
+                            <input type="range" id="cropLen" min="2" max="15" value="5" step="0.5">
+                            <input type="number" id="cropLenNum" value="5" step="0.5">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Tebal Kres (mm)</label>
+                        <div class="numeric-input">
+                            <input type="range" id="cropThick" min="0.1" max="1" value="0.2" step="0.05">
+                            <input type="number" id="cropThickNum" value="0.2" step="0.05">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Offset Kres (mm) — jarak dari sudut</label>
+                        <div class="numeric-input">
+                            <input type="range" id="cropOffset" min="0" max="5" value="0" step="0.5">
+                            <input type="number" id="cropOffsetNum" value="0" step="0.5">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <label><input type="checkbox" id="showCrop" checked> Tampilkan Kres</label>
+                    </div>
+
+                    <div class="asset-grid-title">
+                        TINGGAL MILIH
+                        <button class="btn-blue" style="padding:2px 8px; font-size:10px" onclick="loadAssets()">MUAT</button>
+                    </div>
+                    <div id="assetGrid" class="asset-grid"></div>
+                </div>
+            </div>
+
+            <!-- Tab Histori Cetak -->
+            <div id="tab-history" class="tab-content">
+                <div class="sidebar-scroll">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #3b82f6; text-transform: uppercase;">LOG CETAK RESI</span>
+                        <button onclick="clearPrintHistory()" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer;">HAPUS SEMUA</button>
+                    </div>
+
+                    <!-- Panel Total Cetak Hari Ini (Tetap ada di atas sebagai ringkasan instan) -->
+                    <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 13px;">📅</span> TOTAL RESI HARI INI
+                        </div>
+                        <span id="totalResiToday" style="font-size: 20px; font-weight: 900; color: #10b981;">0</span>
+                    </div>
+
+                    <div id="historyLogList"></div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            <div class="toolbar no-print">
+                <button class="btn-red" onclick="clearCanvas()">RESET LAYAR</button>
+                <span id="pageCounter" style="color:white; font-size:12px; margin-left:auto">Item: 0 | Halaman: 0</span>
+            </div>
+            <div id="canvas-resi" class="canvas-container active"></div>
+            <div id="canvas-image" class="canvas-container"></div>
+        </main>
+    </div>
+</div>
+
+<script>
+let currentMode = 'resi';
+let resiData = [];
+let imageData = [];
+let assetList = [];
+let uploadedImages = [];
+const PAPER_SIZES = { 'A4': [210, 297], 'A3': [297, 420], 'A3+': [329, 483] };
+
+// Daftar nama file gambar yang disimpan di folder 'images/'
+const imageFilenames = [
+    'AESTETiC.jpg','ASTRONOT.jpg','AVATAR.jpg','BE-POSITIVE.jpg','BEACH.jpg','BT21.jpg',
+    'COFFEE.jpg','DORAEMON.jpg','FARM.jpg','FLOWER-NATURE.jpg','GAME.jpg','IDEAS=COFFEE.jpg',
+    'INDONESIA.jpg','ITSOK.jpg','KUCING LUTCU.jpg','LOVE.jpg','MEOW.jpg','MOOD-PANDA.jpg',
+    'MOTOR.jpg','NOTHINK.jpg','OCEANS.jpg','ONE-PICE.jpg','PANTAI.jpg','SAMURAI.jpg',
+    'SUCCES.jpg','SWEAT-CAT.jpg','TRAVELING.jpg','UNICORN.jpg','VW.jpg','H013.jpg',
+    'H014.jpg','H015.jpg','H016.jpg','H017.jpg','H021.jpg','H022.jpg','H023.jpg','H018.jpg','H019.jpg','H020.jpg'
+];
+
+function openTab(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.canvas-container').forEach(v => v.classList.remove('active'));
+    
+    const targetBtn = document.getElementById('btn-tab-' + mode);
+    if (targetBtn) targetBtn.classList.add('active');
+
+    document.getElementById('tab-' + mode).classList.add('active');
+    
+    // Canvas resi tetap ditampilkan sebagai peninjau jika membuka tab histori
+    if (mode === 'history') {
+        document.getElementById('canvas-resi').classList.add('active');
+        document.getElementById('mainTitle').innerText = 'HISTORI CETAK RESI';
+        renderPrintHistory();
+    } else {
+        document.getElementById('canvas-' + mode).classList.add('active');
+        document.getElementById('mainTitle').innerText = mode === 'resi' ? 'STUDIO CETAK RESI' : 'STUDIO CETAK IMAGE';
+    }
+    updateUI();
+}
+
+// ========== PERBAIKAN: MUAT ULANG GAMBAR DARI FOLDER images/ ==========
+function loadAssets() {
+    const grid = document.getElementById('assetGrid');
+    grid.innerHTML = '<div style="grid-column:span 2; text-align:center; color:white">Memuat gambar...</div>';
+    
+    // Buat ulang assetList dengan path ke folder images
+    assetList = imageFilenames.map(name => ({
+        id: Math.random(),
+        name: name,
+        dataUrl: 'images/' + name   // path relatif ke folder images
+    }));
+    
+    // Render ulang grid
+    renderAssets();
+}
+
+function renderAssets() {
+    const grid = document.getElementById('assetGrid');
+    grid.innerHTML = '';
+    if (assetList.length === 0) {
+        grid.innerHTML = '<div style="grid-column:span 2; text-align:center; color:white">Tidak ada gambar. Tekan MUAT.</div>';
+        return;
+    }
+    assetList.forEach((asset, idx) => {
+        const div = document.createElement('div');
+        div.className = 'asset-item';
+        // Gunakan dataUrl sebagai src
+        div.innerHTML = `<img src="${asset.dataUrl}" loading="lazy" onclick="addToCanvasImg(${idx})" onerror="this.style.display='none'"><div class="name">${asset.name}</div><button class="rotate-btn" onclick="rotateAsset(${idx})">↻</button>`;
+        grid.appendChild(div);
+    });
+}
+
+async function rotateAsset(idx) {
+    const img = new Image(); 
+    img.src = assetList[idx].dataUrl; 
+    await img.decode().catch(() => {});
+    // Jika gambar gagal dimuat, skip
+    if (!img.width || !img.height) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.height; canvas.height = img.width;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.rotate(90 * Math.PI / 180);
+    ctx.drawImage(img, -img.width/2, -img.height/2);
+    assetList[idx].dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    renderAssets();
+}
+
+function getPaperDim() {
+    const val = document.getElementById('paperType').value;
+    if (val === 'custom') return [parseInt(document.getElementById('custW').value), parseInt(document.getElementById('custH').value)];
+    return PAPER_SIZES[val];
+}
+
+function addToCanvasImg(idx) {
+    if (!assetList[idx]) return;
+    imageData.push({
+        id: Date.now() + Math.random(),
+        src: assetList[idx].dataUrl,
+        w: parseInt(document.getElementById('imgW').value),
+        h: parseInt(document.getElementById('imgH').value),
+        gap: 0
+    });
+    updateUI();
+}
+
+function deleteItem(id) {
+    if (currentMode === 'resi') resiData = resiData.filter(i => i.id !== id);
+    else imageData = imageData.filter(i => i.id !== id);
+    updateUI();
+}
+
+function clearCanvas() {
+    if (!confirm("Hapus kabeh?")) return;
+    if (currentMode === 'resi') resiData = [];
+    else imageData = [];
+    updateUI();
+}
+
+function addResi(src) {
+    const exists = resiData.some(item => item.src === src);
+    if (exists) { alert('⚠️ Resi ini sudah ada di canvas!'); return false; }
+    resiData.push({ id: Date.now() + Math.random(), src });
+    updateUI();
+    return true;
+}
+
+// Tambahkan updateBadge agar sinkron dengan data resi
+function updateBadge() { 
+    document.getElementById('resiBadge').innerText = resiData.length; 
+}
+
+function updateUI() {
+    updateBadge();
+    if (currentMode === 'resi' || currentMode === 'history') renderResi();
+    if (currentMode === 'image') renderImgMode();
+}
+
+function renderResi() {
+    const container = document.getElementById('canvas-resi');
+    container.innerHTML = '';
+    const [pW, pH] = getPaperDim();
+    const rW = parseInt(document.getElementById('resiWidthNum').value);
+    const rH = parseInt(document.getElementById('resiHeightNum').value);
+    const cols = Math.floor(pW / rW) || 1;
+    const rows = Math.floor(pH / rH) || 1;
+    const perPage = cols * rows;
+    const totalPages = Math.ceil(resiData.length / perPage) || 0;
+
+    document.getElementById('resiCapacity').innerText = perPage;
+    document.getElementById('resiTotal').innerText = resiData.length;
+
+    for (let i = 0; i < totalPages; i++) {
+        const page = createPageEl(pW, pH, i + 1);
+        page.style.display = 'flex';
+        page.style.flexWrap = 'wrap';
+        page.style.alignContent = 'flex-start';
+        page.style.justifyContent = 'flex-start';
+        page.style.alignItems = 'flex-start';
+        page.style.padding = '0';
+        page.style.gap = '0';
+
+        resiData.slice(i * perPage, (i + 1) * perPage).forEach(item => {
+            const slot = document.createElement('div');
+            slot.className = 'slot';
+            slot.style.width = rW + 'mm';
+            slot.style.height = rH + 'mm';
+            slot.style.flexShrink = '0';
+            slot.innerHTML = `<img src="${item.src}"><button class="delete-btn" onclick="deleteItem(${item.id})">×</button>`;
+            page.appendChild(slot);
+        });
+        container.appendChild(page);
+    }
+    document.getElementById('pageCounter').innerText = `Item: ${resiData.length} | Hal: ${totalPages}`;
+}
+
+function renderImgMode() {
+    const container = document.getElementById('canvas-image');
+    container.innerHTML = '';
+    const [pW, pH] = getPaperDim();
+    if (imageData.length === 0) {
+        document.getElementById('pageCounter').innerText = "Item: 0 | Hal: 0";
+        return;
+    }
+
+    const cropLen = parseFloat(document.getElementById('cropLenNum').value) || 5;
+    const cropThick = parseFloat(document.getElementById('cropThickNum').value) || 0.2;
+    const cropOffset = parseFloat(document.getElementById('cropOffsetNum').value) || 0;
+    const showCrop = document.getElementById('showCrop').checked;
+    const gapVal = parseFloat(document.getElementById('imgGap').value) || 0;
+
+    let pCount = 1;
+    let currentPage = createPageEl(pW, pH, pCount);
+    currentPage.style.position = 'relative';
+    currentPage.style.padding = '0';
+    container.appendChild(currentPage);
+
+    let curX = 0, curY = 0, rowH = 0;
+    let sX = 0, sY = 0, sRowH = 0;
+
+    imageData.forEach(item => {
+        if (curX + item.w > pW) {
+            curX = 0;
+            curY += rowH;
+            rowH = 0;
+        }
+        
+        if (curY + item.h > pH) {
+            pCount++;
+            currentPage = createPageEl(pW, pH, pCount);
+            currentPage.style.position = 'relative';
+            currentPage.style.padding = '0';
+            container.appendChild(currentPage);
+            
+            curX = 0; curY = 0; rowH = 0;
+            sX = 0; sY = 0; sRowH = 0;
+        }
+
+        if (sX + item.w > pW && sX > 0) {
+            sX = 0;
+            sY += sRowH + gapVal;
+            sRowH = 0;
+        }
+
+        const slot = document.createElement('div');
+        slot.className = 'slot img-mode';
+        if (!showCrop) slot.classList.add('no-crop');
+        
+        slot.style.setProperty('--crop-len', cropLen + 'mm');
+        slot.style.setProperty('--crop-thick', cropThick + 'mm');
+        slot.style.setProperty('--crop-offset', cropOffset + 'mm');
+        
+        slot.style.setProperty('--x-screen', sX + 'mm');
+        slot.style.setProperty('--y-screen', sY + 'mm');
+        slot.style.setProperty('--x-print', curX + 'mm');
+        slot.style.setProperty('--y-print', curY + 'mm');
+        slot.style.setProperty('--slot-width', item.w + 'mm');
+        slot.style.setProperty('--slot-height', item.h + 'mm');
+        
+        slot.style.width = item.w + 'mm';
+        slot.style.height = item.h + 'mm';
+
+        slot.innerHTML = `
+            <img src="${item.src}">
+            <div class="crop-mark tl"></div>
+            <div class="crop-mark tr"></div>
+            <div class="crop-mark bl"></div>
+            <div class="crop-mark br"></div>
+            <button class="delete-btn" onclick="deleteItem(${item.id})">×</button>
+        `;
+        currentPage.appendChild(slot);
+
+        curX += item.w;
+        if (item.h > rowH) rowH = item.h;
+
+        sX += item.w + gapVal;
+        if (item.h > sRowH) sRowH = item.h;
+    });
+
+    document.getElementById('pageCounter').innerText = `Item: ${imageData.length} | Hal: ${pCount}`;
+}
+
+function createPageEl(w, h, n) {
+    const div = document.createElement('div');
+    div.className = 'paper-page';
+    div.style.width = w + 'mm';
+    div.style.height = h + 'mm';
+    div.innerHTML = `<div class="page-label no-print">Hal ${n}</div>`;
+    return div;
+}
+
+const trimCanvas = (canvas) => {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const w = canvas.width, h = canvas.height;
+    const pixels = ctx.getImageData(0, 0, w, h);
+    const data = pixels.data;
+    let minX = w, minY = h, maxX = 0, maxY = 0, found = false;
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            if (data[i+3] > 0 && (data[i] < 253 || data[i+1] < 253 || data[i+2] < 253)) {
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+                found = true;
+            }
+        }
+    }
+    if (!found) return canvas;
+    const p = 1;
+    const trimW = (maxX - minX) + (p * 2);
+    const trimH = (maxY - minY) + (p * 2);
+    const trimmed = document.createElement('canvas');
+    trimmed.width = trimW; trimmed.height = trimH;
+    trimmed.getContext('2d').drawImage(canvas, minX - p, minY - p, trimW, trimH, 0, 0, trimW, trimH);
+    return trimmed;
+};
+
+document.getElementById('pdfInp').onchange = async (e) => {
+    const files = Array.from(e.target.files);
+    for (let f of files) {
+        const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 2.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width; canvas.height = viewport.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const trimmedCanvas = trimCanvas(canvas);
+            const src = trimmedCanvas.toDataURL('image/jpeg', 0.9);
+            const added = addResi(src);
+            if (added) addToHistory(f.name + ' P' + i, src);
+        }
+    }
+    updateUI();
+};
+
+function addToHistory(name, src) {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `<img src="${src}"><div>${name}</div>`;
+    div.onclick = () => { addResi(src); };
+    document.getElementById('resiHistory').prepend(div);
+}
+
+const uploadArea = document.getElementById('uploadArea');
+const imgUpload = document.getElementById('imgUpload');
+
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => { uploadArea.classList.remove('dragover'); });
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault(); uploadArea.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    handleImageUpload(files);
+});
+imgUpload.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    handleImageUpload(files);
+    imgUpload.value = '';
+});
+
+function handleImageUpload(files) {
+    if (files.length === 0) return;
+    const maxSize = 10 * 1024 * 1024;
+    files.forEach(file => {
+        if (file.size > maxSize) { alert(`⚠️ "${file.name}" terlalu besar (max 10MB)`); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            const uploadedImg = { id: Date.now() + Math.random(), name: file.name, dataUrl: dataUrl };
+            uploadedImages.push(uploadedImg);
+            renderUploadedImages();
+            imageData.push({
+                id: uploadedImg.id, src: dataUrl,
+                w: parseInt(document.getElementById('imgW').value),
+                h: parseInt(document.getElementById('imgH').value),
+                gap: 0
+            });
+            updateUI();
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderUploadedImages() {
+    const container = document.getElementById('uploadPreview');
+    container.innerHTML = '';
+    uploadedImages.forEach((img, idx) => {
+        const div = document.createElement('div');
+        div.className = 'upload-preview-item';
+        div.innerHTML = `
+            <button class="remove-btn" onclick="removeUploadedImage(${idx}, event)">×</button>
+            <img src="${img.dataUrl}" onclick="addUploadedToCanvas(${idx})">
+            <div class="name">${img.name}</div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function removeUploadedImage(idx, event) {
+    event.stopPropagation();
+    const removedId = uploadedImages[idx].id;
+    uploadedImages.splice(idx, 1);
+    imageData = imageData.filter(item => item.id !== removedId);
+    renderUploadedImages();
+    updateUI();
+}
+
+function addUploadedToCanvas(idx) {
+    const img = uploadedImages[idx];
+    imageData.push({
+        id: Date.now() + Math.random(), src: img.dataUrl,
+        w: parseInt(document.getElementById('imgW').value),
+        h: parseInt(document.getElementById('imgH').value),
+        gap: 0
+    });
+    updateUI();
+}
+
+document.getElementById('paperType').onchange = (e) => {
+    document.getElementById('customDim').style.display = e.target.value === 'custom' ? 'inline' : 'none';
+    updateUI();
+};
+
+const triggers = ['custW','custH','imgW','imgH','imgGap','cropLen','cropLenNum','cropThick','cropThickNum','cropOffset','cropOffsetNum','showCrop'];
+triggers.forEach(id => { const el = document.getElementById(id); if (el) el.oninput = updateUI; });
+
+const rWR = document.getElementById('resiWidthRange'), rWN = document.getElementById('resiWidthNum');
+const rHR = document.getElementById('resiHeightRange'), rHN = document.getElementById('resiHeightNum');
+rWR.oninput = () => { rWN.value = rWR.value; updateUI(); };
+rWN.oninput = () => { rWR.value = rWN.value; updateUI(); };
+rHR.oninput = () => { rHN.value = rHR.value; updateUI(); };
+rHN.oninput = () => { rHR.value = rHN.value; updateUI(); };
+
+const sync = (rangeId, numId) => {
+    const r = document.getElementById(rangeId), n = document.getElementById(numId);
+    r.oninput = () => { n.value = r.value; updateUI(); };
+    n.oninput = () => { r.value = n.value; updateUI(); };
+};
+sync('cropLen','cropLenNum'); sync('cropThick','cropThickNum'); sync('cropOffset','cropOffsetNum');
+
+
+// LOGIKA: Menyimpan histori cetak resi ke localStorage
+function saveResiPrintHistory() {
+    const [pW, pH] = getPaperDim();
+    const rW = parseInt(document.getElementById('resiWidthNum').value);
+    const rH = parseInt(document.getElementById('resiHeightNum').value);
+    const cols = Math.floor(pW / rW) || 1;
+    const rows = Math.floor(pH / rH) || 1;
+    const perPage = cols * rows; // jumlah resi dalam satu lembar
+    const totalResi = resiData.length;
+    const totalPages = Math.ceil(totalResi / perPage) || 0;
+    const paperType = document.getElementById('paperType').value;
+    const paperLabel = paperType === 'custom' ? `Karso (${pW}x${pH}mm)` : `${paperType} (${pW}x${pH}mm)`;
+
+    // Cooldown check untuk menghindari pencatatan ganda dalam waktu singkat
+    const now = Date.now();
+    if (window.lastLoggedPrint && (now - window.lastLoggedPrint < 1000)) {
+        return;
+    }
+    window.lastLoggedPrint = now;
+
+    const entry = {
+        id: now,
+        timestamp: new Date().toLocaleString('id-ID', { 
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }),
+        totalResi: totalResi,
+        perPage: perPage,
+        totalPages: totalPages,
+        paperLabel: paperLabel,
+        resiDim: `${rW}x${rH}mm`
+    };
+
+    let history = JSON.parse(localStorage.getItem('resi_print_history') || '[]');
+    history.unshift(entry);
+    localStorage.setItem('resi_print_history', JSON.stringify(history));
+    renderPrintHistory();
+}
+
+function renderPrintHistory() {
+    const container = document.getElementById('historyLogList');
+    if (!container) return;
+    const history = JSON.parse(localStorage.getItem('resi_print_history') || '[]');
+    
+    if (history.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:11px; padding:20px 0;">Belum ada histori cetak resi.</div>';
+        const totalTodayEl = document.getElementById('totalResiToday');
+        if (totalTodayEl) totalTodayEl.innerText = '0';
+        return;
+    }
+
+    // 1. PENGELOMPOKAN BERDASARKAN TANGGAL
+    const groups = {};
+    history.forEach(item => {
+        const itemDate = new Date(item.id);
+        const dateStr = itemDate.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        
+        if (!groups[dateStr]) {
+            groups[dateStr] = {
+                dateLabel: dateStr,
+                items: [],
+                totalSum: 0
+            };
+        }
+        groups[dateStr].items.push(item);
+        groups[dateStr].totalSum += (item.totalResi || 0); // Menjumlahkan total resi pada tanggal ini
+    });
+
+    // 2. UPDATE TOTAL HARI INI DI PANEL RINGKASAN ATAS
+    const todayStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const totalToday = groups[todayStr] ? groups[todayStr].totalSum : 0;
+    const totalTodayEl = document.getElementById('totalResiToday');
+    if (totalTodayEl) {
+        totalTodayEl.innerText = totalToday;
+    }
+
+    // 3. RE-ORDER & CETAK KELOMPOK KE HTML (Tanggal Terbaru Berada Paling Atas)
+    const sortedDates = Object.keys(groups).sort((a, b) => {
+        const timeA = groups[a].items[0].id;
+        const timeB = groups[b].items[0].id;
+        return timeB - timeA;
+    });
+
+    let html = '';
+    sortedDates.forEach(date => {
+        const group = groups[date];
+        html += `
+            <div class="history-group" style="margin-bottom: 16px;">
+                <!-- Header Tanggal + Total Akumulatif Cetak Hari Tersebut -->
+                <div style="background: #0f172a; border-left: 4px solid #10b981; padding: 8px 10px; font-size: 11px; font-weight: bold; color: #f1f5f9; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; margin-bottom: 8px;">
+                    <span>📅 Tanggal: ${group.dateLabel}</span>
+                    <span style="color: #10b981; font-size: 12px; font-weight: 900;">Total: ${group.totalSum} Resi</span>
+                </div>
+                <div>
+        `;
+
+        // Menampilkan kartu log sesi cetak di dalam kelompok tanggal
+        group.items.forEach(item => {
+            const timeOnly = item.timestamp.split(',')[1] || item.timestamp;
+            html += `
+                <div class="history-log-card" style="margin-bottom: 6px;">
+                    <button onclick="deleteHistoryItem(${item.id}, event)" style="position: absolute; top: 6px; right: 8px; background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 14px; font-weight: bold;">×</button>
+                    <div style="color: #94a3b8; font-size: 10px; margin-bottom: 5px; font-weight: bold;">🕒 Jam: ${timeOnly}</div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div>Kertas: <span style="color: #60a5fa; font-weight: bold;">${item.paperLabel}</span></div>
+                        <div>Ukuran Resi: <span style="font-weight: bold;">${item.resiDim}</span></div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px dashed #475569; padding-top: 4px;">
+                            <span>Cetak Sesi Ini: <strong class="highlight">${item.totalResi} resi</strong></span>
+                            <span>Per Lembar: <strong style="color: #10b981;">${item.perPage}</strong></span>
+                        </div>
+                        <div>Total Halaman: <strong>${item.totalPages}</strong></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function deleteHistoryItem(id, event) {
+    event.stopPropagation();
+    if (!confirm("Hapus catatan cetak ini?")) return;
+    let history = JSON.parse(localStorage.getItem('resi_print_history') || '[]');
+    history = history.filter(item => item.id !== id);
+    localStorage.setItem('resi_print_history', JSON.stringify(history));
+    renderPrintHistory();
+}
+
+function clearPrintHistory() {
+    if (!confirm("Hapus semua histori cetak resi?")) return;
+    localStorage.removeItem('resi_print_history');
+    renderPrintHistory();
+}
+
+window.addEventListener('beforeprint', function() {
+    // Menyimpan log cetak apabila pengguna sedang berada di halaman cetak resi dan terdapat item resi
+    if (currentMode === 'resi' && resiData.length > 0) {
+        saveResiPrintHistory();
+    }
+    updateUI();
+    setTimeout(() => {
+        document.querySelectorAll('.slot.img-mode img').forEach(img => {
+            if (!img.complete) img.src = img.src;
+        });
+    }, 150);
+});
+
+// Inisialisasi: load assets otomatis & siapkan daftar riwayat cetak saat pertama kali dibuka
+loadAssets();
+renderPrintHistory();
+</script>
+</body>
+</html>
